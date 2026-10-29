@@ -49,7 +49,7 @@ Klook ClearTrip v2
 | 현행 앱 | Klook |
 | v2 한 문장 | 예약 전 핵심 조건을 명확하게 확인할 수 있는 여행 예약 UX |
 | 작성자 | RONGHAO LIN · 1인 1팀 |
-| 데모 | TODO: 1분 데모 영상 링크 또는 배포 URL |
+| 데모 | [Klook ClearTrip v2 — 1분 Demo 영상](https://youtu.be/p-yGO7iiUNA) |
 | AI 사용 | `AGENTS.md`, `docs/prompt-log.md`, `docs/셀프논증.md` |
 
 본 프로젝트는 실제 결제 및 예약 처리를 수행하지 않는 UI 중심의 학습용 프로토타입이다.
@@ -182,9 +182,7 @@ git diff v1-plan..HEAD --stat
 
 ## 6. 영상 파일 이름
 
-- `docs/영상/demo_1min.mp4` — 전체 흐름 1분 [필수 — 제출물 ①, README "데모" 칸에 링크 · 배포 URL로 대신 가능]: 첫 화면 → 전환 → 임의 결과 → GET 목록 → 넓은 화면
-- `docs/영상/p01.mp4`, `p09.mp4` … — 원칙별 5–10초 클립 [권장], 원칙 카드 번호와 같게
-- 녹화 전: 개인정보 · 알림이 화면에 보이지 않는지 확인. GitHub는 100MB가 넘는 파일을 받지 않으니 큰 영상은 LMS·드라이브 링크로 README "데모" 칸에 적습니다.
+**1분 데모 영상:** [YouTube에서 시청하기](https://youtu.be/p-yGO7iiUNA)
 
 ## 7. 감점 점검 (제출 전, 결과가 비어 있어야 함)
 
