@@ -1,166 +1,292 @@
-// 화면 A: 목록 (GET /items) — TODO: 기획 문서의 화면 이름으로 바꾼다 (예: "오늘의 ○○")
-//
-// ┌──────── 디자인 가이드 대응표: A 목록 ───────────────────────────────────────┐
-// │ 번호 │ Flutter 위젯명                    │ 비즈니스 명칭(한글) │ 원칙(P번호)   │
-// │ A-1  │ AppBar                            │ TODO: ○○ 제목줄     │ P04 일관성(예)│
-// │ A-2  │ ListView + Card (ItemCard)        │ TODO: ○○ 카드 목록  │ P08 미니멀(예)│
-// │ A-3  │ GridView (넓은 화면 ≥600dp)        │ TODO: ○○ 카드 격자  │ 적응형        │
-// │ A-4  │ LoadingView                       │ 불러오는 중 표시    │ P01 가시성    │
-// │ A-5  │ ErrorView + FilledButton          │ 오류 안내·다시 시도 │ P09 오류 복구 │
-// │ A-6  │ EmptyView                         │ 빈 목록 안내        │ P01 가시성    │
-// └────────────────────────────────────────────────────────────────────────────┘
-// 전환: A → B 는 쌓기(Navigator.push).  적응형: LayoutBuilder 600dp 분기 1곳(A-2 ↔ A-3).
-// P번호 = 닐슨 원칙 번호 (docs/디자인가이드.md 2장). 그 원칙을 보여 주는 위젯 줄 끝에 `// A-4 P01` 처럼 단다.
 import 'package:flutter/material.dart';
-
 import '../api.dart';
 import '../models.dart';
 import '../widgets.dart';
 import 'b_detail_screen.dart';
 
-/// 이 너비 이상이면 넓은 화면 배치 (Material 3 window size class: medium ≥ 600dp)
-const wideBreakpoint = 600.0;
-
-class ListScreen extends StatefulWidget {
-  const ListScreen({
-    super.key,
-    this.load = fetchItems,
-    this.loadNotes = fetchNotes,
-  });
-
-  /// 데이터를 가져오는 함수 — 앱은 기본값(GET), 테스트는 가짜 함수를 넣는다.
-  final ItemsLoader load;
-  final NotesLoader loadNotes;
-
+/// Screen A — 상품 및 옵션 선택.
+/// A-1 AppBar P04; A-2 상품 카드 P02/P06; A-3 선택 P07;
+/// A-4 날짜/가격 P05/P06; A-5 인원 P03/P05; A-6 조건 P06;
+/// A-7 총액 P01; A-8 확인 이동 P03/P05.
+class PackageSelectionScreen extends StatefulWidget {
+  const PackageSelectionScreen({super.key});
   @override
-  State<ListScreen> createState() => _ListScreenState();
+  State<PackageSelectionScreen> createState() => _PackageSelectionScreenState();
 }
 
-class _ListScreenState extends State<ListScreen> {
-  late Future<List<Item>> _future = widget.load();
+class _PackageSelectionScreenState extends State<PackageSelectionScreen> {
+  late Future<List<TravelProduct>> _future;
+  String? _chosenId;
+  int _dayIndex = 1;
+  int _quantity = 1;
+  bool _showDemo = false;
+  String _demoMode = 'normal';
+  final List<DateTime> _dates = [
+    DateTime(2026, 10, 30), DateTime(2026, 10, 31), DateTime(2026, 11, 1),
+  ];
 
-  // STATE: 검색어·필터(예: 태그 선택) → A-2 목록 — v2 이후 상태관리로 구현 (지금은 표시만)
-
-  // 다시 시도 = Future만 새로 만드는 setState (화면 안 표시 변화 — 허용)
-  // (주의) `setState(() => _future = …)`처럼 화살표로 쓰면 Future를 돌려줘 디버그 오류가 난다 → 중괄호로 쓴다.
-  void _retry() {
-    setState(() {
-      _future = widget.load();
-    });
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
   }
 
-  void _open(Item item) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => DetailScreen(item: item, loadNotes: widget.loadNotes),
-      ),
+  void _refresh() {
+    // Actual HTTP GET; Future stored outside build to avoid repeated requests.
+    _future = Future<List<TravelProduct>>.delayed(
+      const Duration(milliseconds: 650), fetchProducts,
     );
   }
+
+  void _retry() => setState(() {
+    _demoMode = 'normal';
+    _refresh();
+  });
+
+  int _priceFor(TravelProduct p, int i) => p.basePrice + (i == 0 ? -42 : 0);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mid Project Template')), // A-1 TODO: 화면 A 제목으로 바꾼다
-      body: FutureBuilder<List<Item>>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const LoadingView(label: '목록을 불러오는 중…'); // A-4 P01
-          }
-          if (snap.hasError) {
-            return ErrorView(
-              title: '목록을 불러오지 못했습니다.',
-              message: '${snap.error}',
-              onRetry: _retry,
-            ); // A-5 P09
-          }
-          final items = snap.data ?? const <Item>[];
-          if (items.isEmpty) {
-            return const EmptyView(message: '아직 등록된 항목이 없습니다.'); // A-6 P01
-          }
-          return LayoutBuilder(
-            // 적응형: 기기 종류가 아니라 "이 영역의 너비"로 나눈다
-            builder: (context, constraints) {
-              if (constraints.maxWidth >= wideBreakpoint) {
-                return GridView.builder(
-                  // A-3 넓은 화면: 카드 격자
-                  padding: const EdgeInsets.all(12),
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 320,
-                    mainAxisExtent: 260,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                  ),
-                  itemCount: items.length,
-                  itemBuilder: (context, i) => ItemCard(
-                    items[i],
-                    vertical: true,
-                    onTap: () => _open(items[i]),
-                  ),
-                );
-              }
-              return ListView.builder(
-                // A-2 폰: 카드 목록
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: items.length,
-                itemBuilder: (context, i) =>
-                    ItemCard(items[i], onTap: () => _open(items[i])),
-              );
-            },
-          );
-        },
+      appBar: AppBar(
+        title: const Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.explore_rounded, color: Color(0xFFFF5B24), size: 27),
+          SizedBox(width: 10),
+          Text('Klook', style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900)),
+          SizedBox(width: 8),
+          Text('ClearTrip v2', style: TextStyle(fontSize: 12, color: muted, fontWeight: FontWeight.w600)),
+        ]),
+        actions: [
+          Tooltip(message: '상태 화면 시연', child: IconButton(
+            icon: Icon(_showDemo ? Icons.tune_rounded : Icons.science_outlined),
+            onPressed: () => setState(() => _showDemo = !_showDemo),
+          )),
+          const SizedBox(width: 8),
+        ],
       ),
+      body: Column(children: [
+        if (_showDemo) _demoBar(),
+        Expanded(child: FutureBuilder<List<TravelProduct>>(
+          future: _future,
+          builder: (context, snap) {
+            if (_demoMode == 'loading') return const LoadingState();
+            if (_demoMode == 'error') return ErrorState(onRetry: _retry);
+            if (_demoMode == 'empty') return EmptyState(onRetry: _retry);
+            if (snap.connectionState != ConnectionState.done) return const LoadingState();
+            if (snap.hasError) return ErrorState(onRetry: _retry);
+            final products = snap.data ?? [];
+            if (products.isEmpty) return EmptyState(onRetry: _retry);
+            final selected = products.firstWhere(
+              (p) => p.id == _chosenId, orElse: () => products.first,
+            );
+            return _responsiveBody(products, selected);
+          },
+        )),
+      ]),
     );
   }
-}
 
-/// 항목 카드 한 장 — TODO: 비즈니스 명칭으로 이름을 바꾼다 (예: ProductCard)
-class ItemCard extends StatelessWidget {
-  const ItemCard(this.item, {super.key, this.onTap, this.vertical = false});
+  Widget _demoBar() => Container(
+    color: const Color(0xFFFFF1E9),
+    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 15),
+    child: Wrap(alignment: WrapAlignment.center, crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8, runSpacing: 0, children: [
+      const Text('화면 상태 시연', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+      for (final item in const [('normal', 'GET 정상'), ('loading', '로딩'), ('error', '오류'), ('empty', '빈 상태')])
+        ChoiceChip(
+          label: Text(item.$2, style: const TextStyle(fontSize: 11)),
+          selected: _demoMode == item.$1,
+          visualDensity: VisualDensity.compact,
+          onSelected: (_) => setState(() {
+            _demoMode = item.$1;
+            if (_demoMode == 'normal') _refresh();
+          }),
+        ),
+      const Text('※ 시연용 상태', style: TextStyle(color: muted, fontSize: 10)),
+    ]),
+  );
 
-  final Item item;
-  final VoidCallback? onTap;
+  Widget _responsiveBody(List<TravelProduct> products, TravelProduct selected) {
+    return LayoutBuilder(builder: (context, constraints) {
+      final wide = constraints.maxWidth >= 900;
+      return Center(child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1160),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(horizontal: wide ? 26 : 16, vertical: 20),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _hero(),
+            const SizedBox(height: 24),
+            if (wide)
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(flex: 6, child: _productList(products, selected)),
+                const SizedBox(width: 22),
+                Expanded(flex: 5, child: _selectionPanel(selected)),
+              ])
+            else ...[
+              _productList(products, selected),
+              const SizedBox(height: 18),
+              _selectionPanel(selected),
+            ],
+            const SizedBox(height: 25),
+            const Center(child: Text('수업용 비공식 UX/UI 프로토타입 · 실제 결제 및 예약 불가',
+              textAlign: TextAlign.center, style: TextStyle(color: muted, fontSize: 11))),
+          ]),
+        ),
+      ));
+    });
+  }
 
-  /// true: 넓은 화면 격자용(사진 위, 글 아래) · false: 폰 목록용(사진 왼쪽)
-  final bool vertical;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final info = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(item.title, style: text.titleMedium, maxLines: 1),
-        const SizedBox(height: 2),
-        Text(item.subtitle, style: text.bodySmall, maxLines: 2),
-      ],
-    );
-    return Card(
-      margin: vertical
-          ? EdgeInsets.zero
-          : const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: vertical
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: NetImage(item.image)),
-                  Padding(padding: const EdgeInsets.all(12), child: info),
-                ],
-              )
-            : Row(
-                children: [
-                  NetImage(item.image, width: 96, height: 80),
-                  const SizedBox(width: 12),
-                  Expanded(child: info),
-                  const Icon(Icons.chevron_right),
-                  const SizedBox(width: 8),
-                ],
-              ),
+  Widget _hero() => Container(
+    width: double.infinity,
+    constraints: const BoxConstraints(minHeight: 176),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(22),
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft, end: Alignment.bottomRight,
+        colors: [Color(0xFFFF713C), Color(0xFFFFA65B), Color(0xFFFBD7A2)],
       ),
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: Stack(children: [
+      Positioned(right: -25, top: -55, child: Container(width: 230, height: 230,
+        decoration: BoxDecoration(shape: BoxShape.circle,
+          border: Border.all(color: Colors.white.withValues(alpha: 0.28), width: 40)))),
+      Positioned(right: 34, bottom: -10, child: Icon(Icons.attractions_rounded, size: 145,
+        color: Colors.white.withValues(alpha: 0.7))),
+      Padding(padding: const EdgeInsets.all(25), child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('OSAKA · JAPAN',
+            style: TextStyle(letterSpacing: 2, fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
+          const SizedBox(height: 14),
+          const Text('설레는 여행,\n확실한 예약.',
+            style: TextStyle(fontSize: 29, height: 1.24, fontWeight: FontWeight.w900, color: Colors.white)),
+          const SizedBox(height: 13),
+          Text('중요한 예약 조건을 한눈에 확인하세요.',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.95), fontSize: 12)),
+        ],
+      )),
+    ]),
+  );
+
+  Widget _productList(List<TravelProduct> products, TravelProduct selected) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Eyebrow('01 · Explore'),
+      const SizedBox(height: 5),
+      Text('여행 상품 선택', style: Theme.of(context).textTheme.titleLarge),
+      const SizedBox(height: 7),
+      const Text('로컬 json-server의 GET /items에서 불러온 실제 모의 데이터입니다.',
+        style: TextStyle(color: muted, fontSize: 12)),
+      const SizedBox(height: 15),
+      for (final p in products) ...[
+        _productTile(p, p.id == selected.id),
+        const SizedBox(height: 10),
+      ],
+    ],
+  );
+
+  Widget _productTile(TravelProduct p, bool selected) => Material(
+    color: selected ? const Color(0xFFFFF6F0) : Colors.white,
+    borderRadius: BorderRadius.circular(18),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () => setState(() {
+        _chosenId = p.id; // STATE S1: 선택 상품 → A-2/A-3/A-7.
+        _quantity = 1;
+      }),
+      child: Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: selected ? const Color(0xFFFF7A49) : lineColor,
+            width: selected ? 1.8 : 1),
+        ),
+        child: Row(children: [
+          Container(width: 72, height: 72,
+            decoration: BoxDecoration(color: const Color(0xFFFFE8D7), borderRadius: BorderRadius.circular(13)),
+            child: Icon(p.id == 'usj' ? Icons.attractions_outlined :
+              p.id == 'osaka' ? Icons.local_activity_outlined : Icons.train_outlined,
+              size: 39, color: const Color(0xFFFF5B24))),
+          const SizedBox(width: 13),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(p.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+            const SizedBox(height: 4),
+            Text(p.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 11, color: muted)),
+            const SizedBox(height: 7),
+            Text('¥${p.basePrice} 부터', style: const TextStyle(
+              fontWeight: FontWeight.w900, color: Color(0xFFFF5B24), fontSize: 15)),
+          ])),
+          Icon(selected ? Icons.check_circle : Icons.radio_button_unchecked,
+            color: selected ? const Color(0xFFFF5B24) : muted),
+        ]),
+      ),
+    ),
+  );
+
+  Widget _selectionPanel(TravelProduct product) {
+    final unit = _priceFor(product, _dayIndex);
+    final selection = BookingSelection(
+      product: product, date: _dates[_dayIndex], unitPrice: unit, quantity: _quantity,
     );
+    return SectionCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Eyebrow('02 · Select your options'),
+      const SizedBox(height: 7),
+      Text('날짜 및 인원 선택', style: Theme.of(context).textTheme.titleLarge),
+      const SizedBox(height: 8),
+      Text(product.title, style: const TextStyle(fontSize: 12, color: muted)),
+      const SizedBox(height: 22),
+      const Text('이용 날짜', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 9),
+      // A-4 P05/P06 · STATE S2: date changes displayed price and review summary.
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        for (var i = 0; i < _dates.length; i++)
+          ChoiceChip(
+            selected: _dayIndex == i,
+            label: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('${_dates[i].month}/${_dates[i].day}', style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text('¥${_priceFor(product, i)}', style: const TextStyle(fontSize: 11)),
+            ]),
+            onSelected: (_) => setState(() => _dayIndex = i),
+          ),
+      ]),
+      const SizedBox(height: 19),
+      const Text('인원', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 6),
+      // A-5 P03/P05 · STATE S3: quantity changes total.
+      Row(children: [
+        const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('성인', style: TextStyle(fontWeight: FontWeight.bold)),
+          Text('만 12세 이상 · 최대 10명', style: TextStyle(fontSize: 11, color: muted)),
+        ])),
+        IconButton.outlined(onPressed: _quantity > 1
+          ? () => setState(() => _quantity--) : null,
+          icon: const Icon(Icons.remove)),
+        SizedBox(width: 32, child: Text('$_quantity', textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w800))),
+        IconButton.outlined(onPressed: _quantity < 10
+          ? () => setState(() => _quantity++) : null,
+          icon: const Icon(Icons.add)),
+      ]),
+      const Divider(height: 29),
+      // A-6 P06 · visible critical policy before tapping forward.
+      const ConditionRow(icon: Icons.event_available_outlined,
+        title: '선택한 날짜에만 사용 가능', description: '유효 날짜를 확인해 주세요.'),
+      ConditionRow(icon: Icons.info_outline_rounded,
+        title: product.policyTitle,
+        description: product.policyDescription, alert: true),
+      const Divider(height: 28),
+      // A-7 P01: real-time visible total for classroom-only simulated data.
+      InfoPair(label: '최종 모의 금액 · $_quantity명', value: '¥${selection.totalPrice}', strong: true),
+      const SizedBox(height: 12),
+      // A-8 P03/P05 · Navigator.push to Screen B.
+      SizedBox(width: double.infinity, child: FilledButton.icon(
+        onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => BookingReviewScreen(selection: selection))),
+        icon: const Icon(Icons.fact_check_outlined),
+        label: const Text('예약 내용 확인하기'),
+      )),
+    ]));
   }
 }

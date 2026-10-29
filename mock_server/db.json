@@ -1,60 +1,48 @@
 {
   "items": [
     {
-      "id": 1,
-      "title": "예시 항목 1",
-      "subtitle": "TODO: 내 앱의 실제 화면에 맞는 예시 문구로 바꾼다",
-      "image": "https://picsum.photos/seed/item1/400/300",
-      "tags": [
-        "예시",
-        "태그A"
-      ]
+      "id": "usj",
+      "title": "Universal Studios Japan Studio Pass",
+      "subtitle": "1-day Studio Pass for adult + [Free] Hamikuma Popcorn Bucket voucher",
+      "basePrice": 507,
+      "tags": ["Osaka", "Theme park", "Instant confirmation"],
+      "policyTitle": "취소 불가 (No cancellation)",
+      "policyDescription": "해당 티켓의 취소 및 환불 조건을 결제 전에 확인하세요."
     },
     {
-      "id": 2,
-      "title": "예시 항목 2",
-      "subtitle": "목록 → 상세 → 결과 흐름을 확인하기 위한 샘플 데이터",
-      "image": "https://picsum.photos/seed/item2/400/300",
-      "tags": [
-        "태그B"
-      ]
+      "id": "osaka",
+      "title": "Osaka Amazing Pass",
+      "subtitle": "오사카 관광지 방문을 위한 모의 패스 상품",
+      "basePrice": 136,
+      "tags": ["Osaka", "Attractions", "Example"],
+      "policyTitle": "상품별 조건 확인",
+      "policyDescription": "적용 일자 및 사용 조건은 상세 안내를 확인하세요."
     },
     {
-      "id": 3,
-      "title": "예시 항목 3",
-      "subtitle": "태그가 없는 항목 (빈 값도 화면이 깨지지 않는지 확인)",
-      "image": "https://picsum.photos/seed/item3/400/300",
-      "tags": []
-    },
-    {
-      "id": 4,
-      "title": "예시 항목 4",
-      "subtitle": "넓은 화면(600dp 이상)에서는 격자로 보인다",
-      "image": "https://picsum.photos/seed/item4/400/300",
-      "tags": [
-        "태그A",
-        "태그B"
-      ]
+      "id": "airport",
+      "title": "Kansai Airport Transfer",
+      "subtitle": "간사이 공항 교통 서비스 예시 상품",
+      "basePrice": 115,
+      "tags": ["Transport", "Example"],
+      "policyTitle": "변경·취소 규정 확인",
+      "policyDescription": "서비스 제공업체의 조건을 예약 전에 확인하세요."
     }
   ],
-  "notes": [
+  "policies": [
     {
-      "id": 1,
-      "itemId": 1,
-      "text": "예시 메모 1 — 상세 화면 '메모' 탭에 보인다",
-      "date": "2026-10-15"
+      "id": "policy-usj",
+      "productId": "usj",
+      "description": "[수업용 예시] 선택한 날짜에만 사용 가능한 입장권입니다. 기본 안내는 'No cancellation'이며, 실제 예외 조항 및 부분 환불 조건은 공식 Klook 상품의 전체 이용 규정을 참고해야 합니다. 본 문구는 실제 예약 약관을 대신하지 않습니다."
     },
     {
-      "id": 2,
-      "itemId": 1,
-      "text": "예시 메모 2",
-      "date": "2026-10-16"
+      "id": "policy-osaka",
+      "productId": "osaka",
+      "description": "[수업용 예시] 이용일 및 사용 가능한 시설 범위를 확인해 주세요. 실제 패스는 상품별 운영 조건에 따릅니다."
     },
     {
-      "id": 3,
-      "itemId": 2,
-      "text": "예시 메모 3",
-      "date": "2026-10-17"
+      "id": "policy-airport",
+      "productId": "airport",
+      "description": "[수업용 예시] 승차 시간, 장소 및 변경·취소 가능 조건을 확인해 주세요. 실제 운행 정보나 예약 가능 여부를 표시하지 않습니다."
     }
   ]
 }

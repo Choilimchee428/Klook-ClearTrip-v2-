@@ -1,161 +1,235 @@
-// 화면 B: 상세 — TODO: 기획 문서의 화면 이름으로 바꾼다 (예: "○○ 상세")
-//
-// ┌──────── 디자인 가이드 대응표: B 상세 ───────────────────────────────────────┐
-// │ 번호 │ Flutter 위젯명                  │ 비즈니스 명칭(한글)  │ 원칙(P번호)    │
-// │ B-1  │ AppBar + BackButton             │ TODO: 상세 제목줄    │ P03 통제·자유  │
-// │ B-2  │ TabBar + TabBarView             │ TODO: 정보|메모 탭   │ P06 재인(예)   │
-// │ B-3  │ NetImage + Text(titleLarge)     │ TODO: 대표 사진·이름 │ P02 실세계(예) │
-// │ B-4  │ Wrap(Chip …)                    │ TODO: 태그 칩        │ P08 미니멀(예) │
-// │ B-5  │ OutlinedButton → SnackBar       │ TODO: 저장 버튼(가짜)│ STATE 표시만   │
-// │ B-6  │ FilledButton → 모달 시트        │ TODO: 결과 보기 버튼 │ P07 효율성(예) │
-// │ B-7  │ FutureBuilder(GET /notes)       │ TODO: 메모 목록      │ P01 · P09      │
-// └────────────────────────────────────────────────────────────────────────────┘
-// 전환: A → B 쌓기(push) · B 안에서 옆으로(tab) · B → C 덮기(modal)
 import 'package:flutter/material.dart';
-
 import '../api.dart';
 import '../models.dart';
 import '../widgets.dart';
 import 'c_result_sheet.dart';
 
-class DetailScreen extends StatelessWidget {
-  const DetailScreen({
-    super.key,
-    required this.item,
-    this.loadNotes = fetchNotes,
-  });
+/// Screen B — 통합 예약 확인 (Unified Booking Review).
+/// B-1 AppBar P03/P04; B-2 안내 P02; B-3 정보 카드 P05/P06;
+/// B-4 수정 P03; B-5 중요 규정 P05/P08; B-6 정책 Sheet P10;
+/// B-7 연락처 안내 P05; B-8 확인 체크 P05; B-9 결과 버튼 P01/P05.
+class BookingReviewScreen extends StatefulWidget {
+  const BookingReviewScreen({super.key, required this.selection});
+  final BookingSelection selection;
+  @override
+  State<BookingReviewScreen> createState() => _BookingReviewScreenState();
+}
 
-  final Item item;
-  final NotesLoader loadNotes;
+class _BookingReviewScreenState extends State<BookingReviewScreen> {
+  bool _acknowledged = false;
 
   @override
   Widget build(BuildContext context) {
-    // 옆으로(tab) 예시: DefaultTabController가 탭 선택을 화면 안에서만 처리한다 (허용)
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(item.title), // B-1 (뒤로 버튼 자동)
-          bottom: const TabBar(
-            // B-2
-            tabs: [
-              Tab(text: '정보'), // TODO: 탭 이름 = 비즈니스 명칭
-              Tab(text: '메모'),
-            ],
+    final selection = widget.selection;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Review your booking',
+        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18))),
+      body: LayoutBuilder(builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 850;
+        return Center(child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1040),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(horizontal: wide ? 25 : 16, vertical: 20),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // B-2 P02 — what the user should verify now.
+              const Eyebrow('Step 2 of 3 · Clear review'),
+              const SizedBox(height: 9),
+              Text('예약 전, 중요한 내용만\n한눈에 확인하세요.',
+                style: Theme.of(context).textTheme.headlineMedium),
+              const SizedBox(height: 9),
+              const Text('날짜·상품·금액·취소 규정을 따로 찾지 않아도 됩니다.',
+                style: TextStyle(fontSize: 13, color: muted)),
+              const SizedBox(height: 20),
+              if (wide)
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Expanded(child: _bookingCard(selection)),
+                  const SizedBox(width: 18),
+                  Expanded(child: Column(children: [
+                    _conditionsCard(selection),
+                    const SizedBox(height: 14),
+                    _contactCard(),
+                  ])),
+                ])
+              else ...[
+                _bookingCard(selection),
+                const SizedBox(height: 14),
+                _conditionsCard(selection),
+                const SizedBox(height: 14),
+                _contactCard(),
+              ],
+              const SizedBox(height: 14),
+              _confirmationCard(selection),
+              const SizedBox(height: 18),
+              const Center(child: Text('수업용 프로토타입 · 결제 및 실제 예약 기능 없음',
+                style: TextStyle(fontSize: 11, color: muted))),
+            ]),
           ),
-        ),
-        body: TabBarView(
-          children: [
-            _InfoTab(item: item),
-            _NotesTab(itemId: item.id, load: loadNotes),
-          ],
-        ),
+        ));
+      }),
+    );
+  }
+
+  Widget _bookingCard(BookingSelection s) => SectionCard(child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(children: [
+        const Expanded(child: Text('예약 정보', style: TextStyle(
+          fontSize: 17, fontWeight: FontWeight.w800))),
+        // B-4 P03: can always return to change selection.
+        TextButton.icon(onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.edit_outlined, size: 18),
+          label: const Text('수정하기')),
+      ]),
+      const SizedBox(height: 9),
+      Container(width: double.infinity, padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: const Color(0xFFFFF5EE),
+          borderRadius: BorderRadius.circular(13)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Eyebrow('Your ticket'),
+          const SizedBox(height: 7),
+          Text(s.product.title,
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 5),
+          Text(s.product.subtitle,
+            style: const TextStyle(color: muted, fontSize: 12)),
+        ])),
+      const SizedBox(height: 12),
+      InfoPair(label: '이용 날짜', value: s.displayDate),
+      InfoPair(label: '인원', value: '성인 ${s.quantity}명'),
+      InfoPair(label: '티켓 단가', value: '¥${s.unitPrice}'),
+      const Divider(height: 26),
+      // B-3 P05/P06: previously split booking and price summaries.
+      InfoPair(label: '총 모의 금액', value: '¥${s.totalPrice}', strong: true),
+      const Text('실제 결제 금액이 아닌, 화면 검증용 예시 금액입니다.',
+        style: TextStyle(fontSize: 11, color: muted)),
+    ],
+  ));
+
+  Widget _conditionsCard(BookingSelection s) => SectionCard(child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Row(children: [
+        Icon(Icons.verified_user_outlined, color: Color(0xFFFF5B24)),
+        SizedBox(width: 9),
+        Expanded(child: Text('중요 예약 조건',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800))),
+      ]),
+      const SizedBox(height: 10),
+      // B-5 P05/P08: high-impact terms shown directly, not truncated.
+      const ConditionRow(icon: Icons.bolt_rounded, title: '즉시 확인',
+        description: '결과 화면의 상태는 수업용 가상 데이터입니다.'),
+      ConditionRow(icon: Icons.event_available_outlined,
+        title: '선택한 날짜에만 사용 가능',
+        description: '유효 날짜: ${s.displayDate}'),
+      ConditionRow(icon: Icons.report_problem_outlined,
+        title: s.product.policyTitle,
+        description: s.product.policyDescription, alert: true),
+      const Divider(height: 23),
+      // B-6 P10: actual second GET /policies in a modal sheet.
+      TextButton.icon(
+        onPressed: () => showModalBottomSheet<void>(
+          context: context, isScrollControlled: true, showDragHandle: true,
+          builder: (context) => _PolicySheet(productId: s.product.id)),
+        icon: const Icon(Icons.menu_book_outlined),
+        label: const Text('전체 이용 규정 보기'),
       ),
-    );
-  }
+    ],
+  ));
+
+  Widget _contactCard() => const SectionCard(child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(children: [
+        Icon(Icons.contact_mail_outlined, size: 23, color: Color(0xFFFF5B24)),
+        SizedBox(width: 9),
+        Expanded(child: Text('연락처 관련 안내',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800))),
+      ]),
+      SizedBox(height: 10),
+      Text('기존 앱에서는 제출 후 일부 정보 수정이 제한될 수 있습니다.\n'
+        '이 프로토타입은 개인정보를 수집하지 않습니다.',
+        style: TextStyle(color: muted, fontSize: 13, height: 1.55)),
+    ],
+  ));
+
+  Widget _confirmationCard(BookingSelection selection) => SectionCard(child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('최종 확인', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 5),
+      const Text('위험 정보는 기본 노출하고 상세 정책만 추가로 열도록 설계했습니다.',
+        style: TextStyle(fontSize: 12, color: muted)),
+      const SizedBox(height: 12),
+      // B-8 P05 · STATE S4: only this checkbox changes B-9 enabled state.
+      CheckboxListTile(
+        value: _acknowledged,
+        onChanged: (value) => setState(() => _acknowledged = value ?? false),
+        contentPadding: EdgeInsets.zero,
+        controlAffinity: ListTileControlAffinity.leading,
+        title: const Text('날짜, 인원, 금액과 취소 규정을 확인했습니다.',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        subtitle: const Text('체크박스의 효용은 셀프 논증에서 재검토할 설계 가설입니다.',
+          style: TextStyle(fontSize: 11, color: muted)),
+      ),
+      const SizedBox(height: 11),
+      // B-9: opens modal C result, not a payment or booking request.
+      SizedBox(width: double.infinity, child: FilledButton.icon(
+        onPressed: _acknowledged
+          ? () => ResultSheet.show(context, selection) : null,
+        icon: const Icon(Icons.arrow_forward_rounded),
+        label: const Text('모의 예약 결과 보기'),
+      )),
+    ],
+  ));
 }
 
-class _InfoTab extends StatelessWidget {
-  const _InfoTab({required this.item});
-
-  final Item item;
-
+class _PolicySheet extends StatefulWidget {
+  const _PolicySheet({required this.productId});
+  final String productId;
   @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: AspectRatio(aspectRatio: 16 / 9, child: NetImage(item.image)),
-        ), // B-3
-        const SizedBox(height: 16),
-        Text(item.title, style: text.titleLarge), // B-3
-        const SizedBox(height: 4),
-        Text(item.subtitle, style: text.bodyMedium),
-        const SizedBox(height: 12),
-        if (item.tags.isNotEmpty)
-          Wrap(
-            // B-4
-            spacing: 6,
-            runSpacing: 6,
-            children: [for (final t in item.tags) Chip(label: Text(t))],
-          ),
-        const SizedBox(height: 24),
-        // STATE: 저장(즐겨찾기) 여부 → B-5 버튼 모양, A-2 카드 표시 — v2 이후 상태관리로 구현 (지금은 표시만)
-        //   실제로 저장하지 않는다(영구 저장은 감점). 누르면 SnackBar로 "보이기만" 한다.
-        OutlinedButton.icon(
-          // B-5
-          onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('예시 화면입니다 — 실제로 저장하지 않습니다.')),
-          ),
-          icon: const Icon(Icons.bookmark_border),
-          label: const Text('저장 (예시)'),
-        ),
-        const SizedBox(height: 8),
-        FilledButton.icon(
-          // B-6 P07 — 덮기(modal) 예시
-          onPressed: () => ResultSheet.show(context, item),
-          icon: const Icon(Icons.auto_awesome),
-          label: const Text('결과 보기'),
-        ),
-      ],
-    );
-  }
+  State<_PolicySheet> createState() => _PolicySheetState();
 }
 
-/// '메모' 탭 — 두 번째 GET 예시 (GET /notes?itemId=…)
-class _NotesTab extends StatefulWidget {
-  const _NotesTab({required this.itemId, required this.load});
-
-  final int itemId;
-  final NotesLoader load;
-
+class _PolicySheetState extends State<_PolicySheet> {
+  late Future<String> _future;
   @override
-  State<_NotesTab> createState() => _NotesTabState();
-}
-
-class _NotesTabState extends State<_NotesTab> {
-  late Future<List<Note>> _future = widget.load(widget.itemId);
-
-  void _retry() {
-    setState(() {
-      _future = widget.load(widget.itemId);
-    });
+  void initState() {
+    super.initState();
+    _future = fetchPolicyDetails(widget.productId);
   }
-
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<List<Note>>(
-      future: _future,
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const LoadingView(label: '메모를 불러오는 중…'); // B-7 P01
-        }
-        if (snap.hasError) {
-          return ErrorView(
-            title: '메모를 불러오지 못했습니다.',
-            message: '${snap.error}',
-            onRetry: _retry,
-          ); // B-7 P09
-        }
-        final notes = snap.data ?? const <Note>[];
-        if (notes.isEmpty) {
-          return const EmptyView(message: '아직 메모가 없습니다.'); // B-7 P01
-        }
-        return ListView.separated(
-          // B-7
-          padding: const EdgeInsets.all(8),
-          itemCount: notes.length,
-          separatorBuilder: (_, _) => const Divider(height: 1),
-          itemBuilder: (context, i) => ListTile(
-            leading: const Icon(Icons.notes_outlined),
-            title: Text(notes[i].text),
-            subtitle: Text(notes[i].date),
-          ),
-        );
-      },
-    );
-  }
+  Widget build(BuildContext context) => SafeArea(child: Padding(
+    padding: const EdgeInsets.fromLTRB(22, 12, 22, 28),
+    child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 650),
+      child: Column(mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('상세 이용 규정', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 6),
+          const Text('로컬 json-server · GET /policies',
+            style: TextStyle(fontSize: 11, color: muted)),
+          const SizedBox(height: 18),
+          FutureBuilder<String>(future: _future, builder: (context, snap) {
+            if (snap.connectionState != ConnectionState.done) {
+              return const Padding(padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()));
+            }
+            if (snap.hasError) {
+              return Column(children: [
+                const Text('이용 규정을 불러오지 못했습니다.'),
+                TextButton(onPressed: () => setState(() {
+                  _future = fetchPolicyDetails(widget.productId);
+                }), child: const Text('다시 시도')),
+              ]);
+            }
+            return Text(snap.data ?? '안내 없음',
+              style: const TextStyle(fontSize: 14, height: 1.7));
+          }),
+          const SizedBox(height: 20),
+          const Text('※ 실제 약관이 아닌 수업용 예시입니다. 실제 이용 시 공식 판매 조건을 확인해야 합니다.',
+            style: TextStyle(color: muted, fontSize: 11)),
+          const SizedBox(height: 14),
+          SizedBox(width: double.infinity, child: OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('닫기'))),
+        ])),
+  ));
 }

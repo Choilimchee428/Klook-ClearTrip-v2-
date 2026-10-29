@@ -1,30 +1,58 @@
-// TODO: 앱 이름 v2 — GAI3008 중간고사 (UI만 구현)
-//
-// ┌──────── 디자인 가이드 대응표: 앱 뼈대 ──────────────────────────────────────┐
-// │ 번호 │ Flutter 위젯명        │ 비즈니스 명칭(한글)      │ 원칙(P번호)       │
-// │ S-1  │ MaterialApp           │ TODO: 앱 이름            │ —                 │
-// │ S-2  │ ThemeData(seedColor)  │ TODO: 브랜드 색          │ P04 일관성 (예)   │
-// └────────────────────────────────────────────────────────────────────────────┘
-// 화면 흐름(docs/디자인가이드.md 1장과 같게):
-//   A 목록 ──쌓기(push)──▶ B 상세 [옆으로(tab): 정보 | 메모] ──덮기(modal)──▶ C 결과(임의)
-// 기획 문서에 없는 화면은 만들지 않는다(감점). 화면을 늘리면 이 주석·가이드도 같이 고친다.
 import 'package:flutter/material.dart';
-
 import 'screens/a_list_screen.dart';
 
-void main() => runApp(const MidProjectApp());
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const ClearTripApp());
+}
 
-class MidProjectApp extends StatelessWidget {
-  const MidProjectApp({super.key});
+class ClearTripApp extends StatelessWidget {
+  const ClearTripApp({super.key});
+  static const brand = Color(0xFFFF5B24);
+  static const ink = Color(0xFF172030);
 
   @override
   Widget build(BuildContext context) {
+    final colors = ColorScheme.fromSeed(
+      seedColor: brand, primary: brand,
+      surface: Colors.white, onSurface: ink,
+    );
     return MaterialApp(
-      title: 'Mid Project Template', // S-1 TODO: 내 앱 이름 v2로 바꾼다
+      title: 'Klook ClearTrip v2',
       debugShowCheckedModeBanner: false,
-      // S-2 TODO: 현행 앱의 브랜드 색으로 바꾼다
-      theme: ThemeData(colorSchemeSeed: const Color(0xFF3F51B5)),
-      home: const ListScreen(),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: colors,
+        scaffoldBackgroundColor: const Color(0xFFF8F8FB),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: ink,
+          surfaceTintColor: Colors.white,
+          elevation: 0,
+          centerTitle: false,
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: brand,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 17),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+        ),
+        cardTheme: CardThemeData(
+          color: Colors.white,
+          elevation: 0,
+          margin: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+        textTheme: const TextTheme(
+          headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: ink),
+          titleLarge: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: ink),
+          titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: ink),
+          bodyMedium: TextStyle(fontSize: 14, height: 1.45, color: ink),
+        ),
+      ),
+      home: const PackageSelectionScreen(),
     );
   }
 }

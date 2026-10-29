@@ -1,72 +1,62 @@
-// 데이터 모양 — db.json의 한 항목을 화면이 쓰기 좋은 객체로 바꾼다.
-// 형식이 틀린 항목은 null을 돌려준다 → 목록에서 빠질 뿐 앱이 멈추지 않는다 (Dart 3 패턴 매칭).
-//
-// TODO: Item / Note를 내 앱의 비즈니스 명칭으로 바꾼다 (예: Item → Product, Note → Review).
-//           필드 이름은 db.json의 키와 같아야 한다.
-
-class Item {
-  const Item({
+/// Classroom-only product and booking data. No real inventory, payment or booking.
+class TravelProduct {
+  const TravelProduct({
     required this.id,
     required this.title,
     required this.subtitle,
-    required this.image,
-    this.tags = const [],
+    required this.basePrice,
+    required this.tags,
+    required this.policyTitle,
+    required this.policyDescription,
   });
 
-  final int id;
+  final String id;
   final String title;
   final String subtitle;
-  final String image;
+  final int basePrice;
   final List<String> tags;
+  final String policyTitle;
+  final String policyDescription;
 
-  /// Dart 3 패턴 예: 맵 모양이 맞으면 꺼내고(구조 분해), 아니면 null.
-  static Item? fromJson(Object? json) {
-    return switch (json) {
-      {
-        'id': int id,
-        'title': String title,
-        'subtitle': String subtitle,
-        'image': String image,
-      } =>
-        Item(
-          id: id,
-          title: title,
-          subtitle: subtitle,
-          image: image,
-          // 있어도 되고 없어도 되는 필드: 모양이 다르면 빈 목록
-          tags: switch (json['tags']) {
-            List<Object?> t => t.whereType<String>().toList(),
-            _ => const [],
-          },
-        ),
-      _ => null,
-    };
+  static TravelProduct? fromJson(Object? value) {
+    if (value is! Map<String, dynamic>) return null;
+    final id = value['id']?.toString(); // json-server v1 uses string IDs.
+    final title = value['title'];
+    final subtitle = value['subtitle'];
+    final basePrice = value['basePrice'];
+    if (id == null || title is! String || subtitle is! String ||
+        basePrice is! num) {
+      return null;
+    }
+    return TravelProduct(
+      id: id,
+      title: title,
+      subtitle: subtitle,
+      basePrice: basePrice.toInt(),
+      tags: value['tags'] is List
+          ? (value['tags'] as List).whereType<String>().toList()
+          : const [],
+      policyTitle: value['policyTitle'] is String
+          ? value['policyTitle'] as String : '이용 조건 확인',
+      policyDescription: value['policyDescription'] is String
+          ? value['policyDescription'] as String : '상세 규정을 확인해 주세요.',
+    );
   }
 }
 
-class Note {
-  const Note({
-    required this.id,
-    required this.itemId,
-    required this.text,
+class BookingSelection {
+  const BookingSelection({
+    required this.product,
     required this.date,
+    required this.unitPrice,
+    required this.quantity,
   });
-
-  final int id;
-  final int itemId;
-  final String text;
-  final String date;
-
-  static Note? fromJson(Object? json) {
-    return switch (json) {
-      {
-        'id': int id,
-        'itemId': int itemId,
-        'text': String text,
-        'date': String date,
-      } =>
-        Note(id: id, itemId: itemId, text: text, date: date),
-      _ => null,
-    };
-  }
+  final TravelProduct product;
+  final DateTime date;
+  final int unitPrice;
+  final int quantity;
+  int get totalPrice => unitPrice * quantity;
+  String get displayDate => '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}';
 }
+
+enum DemoBookingStatus { confirmed, pending, actionNeeded }
